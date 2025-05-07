@@ -16,3 +16,4 @@ pymupdf
 sentence-transformers
 pandas
 numpy==1.26.4
+python-dotenv
