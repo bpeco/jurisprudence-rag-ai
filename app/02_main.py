@@ -2,7 +2,7 @@ import streamlit as st
 from get_response import get_answer
 
 
-st.title("🔍 Preguntá tu RAG de fallos")
+st.title("🔍 AI Derecho Comercial Argentino - Fallos")
 pregunta = st.text_input("Tu pregunta:")
 if st.button("Consultar") and pregunta:
     with st.spinner("Pensando…"):
