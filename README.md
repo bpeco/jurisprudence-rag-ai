@@ -11,6 +11,7 @@ This repository implements an end-to-end pipeline that enables semantic search a
 
 The system follows a classic RAG setup with a few enhancements:
 - Preprocessed full judicial rulings (parent documents) are chunked into semantically meaningful fragments.
+- Parent documents are stored in a SQLite database (`parent_documents.db`) and are accessed via `app/sqlite_docstore.py`.
 - These chunks are embedded and stored in a Chroma vector DB with persistent storage.
 - Each chunk keeps a reference to its parent document for traceability and post-filtering.
 - At query time, a retriever fetches relevant chunks using vector similarity.
@@ -19,10 +20,10 @@ The system follows a classic RAG setup with a few enhancements:
 
 ## ⚙️ Tech Stack
 
-| Layer                | Tool / Library                        | Purpose                                          |
+| Layer                | Tool / Library                         | Purpose                                          |
 |----------------------|----------------------------------------|--------------------------------------------------|
 | Language             | Python                                 | Core implementation                              |
-| Vector Store         | Chroma DB                              | Vector similarity search                         |
+| Vector Store         | Chroma DB + HNSW (ANN)                 | Vector similarity search                         |
 | Embeddings           | HuggingFace Sentence-Transformers      | Semantic encoding of chunks                      |
 | LLM (Generation)     | OpenAI (ChatOpenAI via LangChain)      | Natural language response generation             |
 | Prompt Engineering   | LangChain PromptTemplate               | Custom domain-specific prompt                    |
@@ -30,6 +31,7 @@ The system follows a classic RAG setup with a few enhancements:
 | Retrieval Engine     | LangChain MultiVectorRetriever         | Parent-aware semantic retrieval                  |
 | PDF Parsing          | PyMuPDF                                | Extract raw text from rulings                    |
 | Configuration        | python-dotenv                          | Environment variable handling                    |
+| Document Store       | SQLite                                 | Stores full text and metadata of errors          |
 
 ## 📁 Main Modules
 
@@ -38,8 +40,9 @@ The system follows a classic RAG setup with a few enhancements:
 - `03_generate_LLM_response.ipynb`: Tests query + generation loop.
 - `app/get_response.py`: Front-end | Core logic for retrieval, context assembly, and answer generation.
 - `app/02_main.py`: Front-end app | Streamlit-based UI to interact with the RAG pipeline.
-- `parent_documents.pkl`: Pickled list of court rulings with metadata.
-- `multivector_chroma_db_001/`: Local Chroma vector DB (built during preprocessing).
+- `parent_documents.db`: SQLite database with full parent documents + metadata.
+- `app/sqlite_docstore.py`: Clase que implementa el docstore sobre SQLite.
+- `multivector_chroma_db_hnsw_001/`: ChromaDB + HNSW index de fragmentos.
 
 ## 🔁 RAG Pipeline
 
