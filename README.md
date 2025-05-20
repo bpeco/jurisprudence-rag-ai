@@ -43,7 +43,29 @@ The system follows a classic RAG setup with a few enhancements:
 
 ## 🔁 RAG Pipeline
 
-![Pipeline](juridisprudence-ai-pipeline.png "Pipeline")
+```mermaid
+flowchart TD
+  subgraph Query
+    direction TB
+    Q[User Question] --> R[Vector search on ChromaDB top-k]
+    R --> S[Retrieve parent documents via parent_id]
+    S --> T[Insert context into custom prompt]
+    T --> U[Generate answer with OpenAI Chat API]
+    U --> V[Return answer + metadata of source rulings]
+  end
+
+  subgraph Preprocessing
+    direction TB
+    A[Raw PDFs of Court Rulings] --> B[Extract text & metadata with PyMuPDF]
+    B --> C[Reconstruct parent documents]
+    C --> D1[Chunk into semantic fragments]
+    C --> D2[Store full parent documents in SQLite]
+    D1 --> E[Embedding with SentenceTransformers]
+    E --> F[Index fragments in ChromaDB + HNSW]
+  end
+```
+
+![Pipeline](juridisprudence-ai-pipeline-2.png "Pipeline")
 
 ## 📌 Design Choices
 
