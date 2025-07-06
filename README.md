@@ -1,91 +1,107 @@
+# Jurisprudence RAG AI on Google Cloud
 
-# Jurisprudence RAG AI
-
-A legal assistant powered by Retrieval-Augmented Generation (RAG) for answering complex questions based on Argentine judicial rulings. This project applies modern GenAI techniques to build a domain-specific QA system that is accurate, transparent, and grounded in real legal documents.
+A legal QA assistant powered by Retrieval-Augmented Generation (RAG) using Google Cloud services to answer complex questions based on Argentine judicial rulings.
 
 ## 🧠 Project Purpose
 
-This repository implements an end-to-end pipeline that enables semantic search and generative QA over a corpus of commercial law jurisprudence in Spanish. Users can ask natural language questions and receive AI-generated answers with traceable references **to actual court rulings**. The goal is to reduce hallucinations common in general-purpose LLMs by anchoring generation in a curated, searchable document base.
+This repository implements an end-to-end pipeline for semantic search and generative QA over a corpus of Spanish-language commercial law jurisprudence. By anchoring AI responses in real court rulings, we drastically reduce hallucinations and ensure traceability to the source documents.
 
-## 🧱 Architecture Overview
+## 🏛️ Architecture Overview
 
-The system follows a classic RAG setup with a few enhancements:
-- Preprocessed full judicial rulings (parent documents) are chunked into semantically meaningful fragments.
-- Parent documents are stored in a SQLite database (`parent_documents.db`) and are accessed via `app/sqlite_docstore.py`.
-- These chunks are embedded and stored in a Chroma vector DB with persistent storage.
-- Each chunk keeps a reference to its parent document for traceability and post-filtering.
-- At query time, a retriever fetches relevant chunks using vector similarity.
-- The final answer is generated using OpenAI's Chat API (via LangChain), using the retrieved context as input.
-- The system returns both the response and metadata of the supporting cases.
-
-## ⚙️ Tech Stack
-
-| Layer                | Tool / Library                         | Purpose                                          |
-|----------------------|----------------------------------------|--------------------------------------------------|
-| Language             | Python                                 | Core implementation                              |
-| Vector Store         | Chroma DB + HNSW (ANN)                 | Vector similarity search                         |
-| Embeddings           | HuggingFace Sentence-Transformers      | Semantic encoding of chunks                      |
-| LLM (Generation)     | OpenAI (ChatOpenAI via LangChain)      | Natural language response generation             |
-| Prompt Engineering   | LangChain PromptTemplate               | Custom domain-specific prompt                    |
-| UI                   | Streamlit                              | User interface for live interaction              |
-| Retrieval Engine     | LangChain MultiVectorRetriever         | Parent-aware semantic retrieval                  |
-| PDF Parsing          | PyMuPDF                                | Extract raw text from rulings                    |
-| Configuration        | python-dotenv                          | Environment variable handling                    |
-| Document Store       | SQLite                                 | Stores full text and metadata of errors          |
-
-## 📁 Main Modules
-
-- `01_generate_documents.ipynb`: Prepares parent documents and metadata.
-- `02_generate_chunks_vectordb.ipynb`: Chunks, embeds, and indexes documents.
-- `03_generate_LLM_response.ipynb`: Tests query + generation loop.
-- `app/get_response.py`: Front-end | Core logic for retrieval, context assembly, and answer generation.
-- `app/02_main.py`: Front-end app | Streamlit-based UI to interact with the RAG pipeline.
-- `parent_documents.db`: SQLite database with full parent documents + metadata.
-- `app/sqlite_docstore.py`: Clase que implementa el docstore sobre SQLite.
-- `multivector_chroma_db_hnsw_001/`: ChromaDB + HNSW index de fragmentos.
-
-## 🔁 RAG Pipeline
+* **PDF Ingestion**: Court rulings (PDFs) are stored in a Google Cloud Storage (GCS) bucket.
+* **Text & Metadata Extraction**: PyMuPDF processes each PDF and loads extracted text and metadata into BigQuery.
+* **Parent Document Assembly**: Full texts with enriched metadata are reconstructed as "parent documents."
+* **Semantic Chunking**: Each parent document is split into meaningful fragments (chunks).
+* **Embeddings & Vector Store**: Vertex AI Embeddings generates multilingual semantic vectors, which are indexed in a managed Vertex AI Vector Index.
+* **Retrieval**: At query time, Vertex AI RAG retrieves top‐k relevant chunks based on semantic similarity against the Vector Index.
+* **Generation**: Vertex AI Chat consumes retrieved context and generates a final answer.
+* **Traceability**: Every chunk retains references to its parent (GCS URI & BigQuery row), so we can link answers back to specific rulings.
 
 ```mermaid
 flowchart TD
-  subgraph Query
-    direction TB
-    Q[User Question] --> R[Vector search on ChromaDB top-k]
-    R --> S[Retrieve parent documents via parent_id]
-    S --> T[Insert context into custom prompt]
-    T --> U[Generate answer with OpenAI Chat API]
-    U --> V[Return answer + metadata of source rulings]
+  subgraph Preprocessing
+    A[GCS Bucket: PDFs] --> B[PyMuPDF → BigQuery]
+    B --> C[Reconstruct Parent Documents]
+    C --> D[Semantic Chunking]
+    D --> E[Vertex AI Embeddings]
+    E --> F[Index in Vertex AI Vector Index]
   end
 
-  subgraph Preprocessing
-    direction TB
-    A[Raw PDFs of Court Rulings] --> B[Extract text & metadata with PyMuPDF]
-    B --> C[Reconstruct parent documents]
-    C --> D1[Chunk into semantic fragments]
-    C --> D2[Store full parent documents in SQLite]
-    D1 --> E[Embedding with SentenceTransformers]
-    E --> F[Index fragments in ChromaDB + HNSW]
+  subgraph Query
+    Q[User Question] --> R[Vertex AI RAG Retrieval]
+    R --> S[Assemble Context + References]
+    S --> T[Vertex AI Chat Generation]
+    T --> U[Answer + Source Links]
   end
 ```
 
-![Pipeline](juridisprudence-ai-pipeline-2.png "Pipeline")
+## ⚙️ Tech Stack
+
+| Layer                  | Service / Library                     | Purpose                                      |
+| ---------------------- | ------------------------------------- | -------------------------------------------- |
+| Storage & Ingestion    | Google Cloud Storage (GCS)            | Store raw PDF rulings                        |
+| Extraction & Metadata  | PyMuPDF                               | Extract text and metadata                    |
+| Structured Storage     | BigQuery                              | Store texts & metadata for SQL analysis      |
+| Vector Database        | Vertex AI Vector Index                | Semantic vector indexing                     |
+| Embeddings             | Vertex AI Embeddings Multilingual     | Generate chunk embeddings                    |
+| RAG & LLM Generation   | Vertex AI RAG, Vertex AI Chat         | Retrieval and answer generation              |
+| Orchestration          | Google ADK CLI, Cloud Build pipelines | Automate preprocessing and deployment        |
+| Infrastructure as Code | Terraform (infra/)                    | Provision GCS, BigQuery, Vertex AI, IAM, VPC |
+
+## 📁 Main Modules
+
+* `01_upload_pdfs_to_gcs.ipynb`: Upload court ruling PDFs to GCS and register metadata.
+* `02_analyze_pdfs.ipynb`: Analyze PDF text to determine optimal chunk sizes and fragmentation strategy.
+* `04_vertex.ipynb`: Create and index the semantic corpus in Vertex AI Vector Index.
+
+### RAG Agent Module
+
+Located in the `rag_agent/` package, this module implements the conversational agent:
+
+```
+rag_agent/
+├── __init__.py
+├── agent.py          # Core agent logic (loop, tool invocation)
+├── config.py         # Environment and API key settings
+└── tools/
+    ├── __init__.py
+    ├── add_data.py        # Tool for adding new documents to the corpus
+    ├── get_corpus_info.py # Tool to fetch corpus statistics and metadata
+    ├── rag_query.py       # Tool to execute retrieval + generation
+    └── utils.py           # Shared helper functions
+```
+
+## 🔁 RAG Pipeline (Detailed)
+
+1. **Preprocessing**:
+
+   * PDFs ingested to GCS.
+   * PyMuPDF extracts text & metadata → BigQuery tables.
+   * Parent documents assembled with metadata fields (case number, date, court).
+   * Documents split into semantic chunks.
+   * Chunks embedded with Vertex AI and indexed in the Vector Index.
+
+2. **Query**:
+
+   * ADK Web receives a user question.
+   * Vertex AI RAG retrieves relevant chunk vectors from the Vector Index.
+   * Context and metadata (GCS URI, BigQuery row) assembled into prompt.
+   * Vertex AI Chat generates a response, including citations to original rulings.
 
 ## 📌 Design Choices
 
-- **Parent-aware chunking**: Each chunk retains a link to its full ruling. This allows grouping retrieved chunks and surfacing metadata alongside answers.
-- **Minimal infrastructure**: Everything runs locally (no cloud DBs or orchestration), making it easy to prototype and reproduce.
-- **Full Spanish support**: Prompts, documents, and embeddings tailored for Spanish legal language.
-- **LLM filtering through prompting**: The LLM in a first-step filter irrelevant documents to provide an accurate answer. 
+* **BigQuery for Metadata**: Enables auditability and complex SQL queries on case attributes.
+* **Vertex AI Vector Index**: Leverages Google Cloud’s managed vector search.
+* **Google ADK**: Standardizes pipeline orchestration, monitoring, and deployments.
+* **End-to-End Spanish Support**: All embeddings, prompts, and UI are tailored for Argentine legal language.
 
-## 🚧 Improvements in Progress
+## 🚀 Roadmap & Improvements
 
-- Adding more data to de database.
-- Adding tests and CI/CD for production-readiness.
-
----
-
-## 🧠 Author
-
-Built by [@bpeco](https://github.com/bpeco) — AI Engineer focused on tool-using agents, LLM infrastructure and real-world GenAI applications.
+* Currently developing the BigQuery integration for structured storage, query analytics and metadata management.
+* Integrating the RAG backend with a FastAPI service for production endpoints instead of relying on ADK Web.
 
 ---
+
+## 🧑‍💻 Author
+
+Built by [@bpeco](https://github.com/bpeco) — AI Engineer & CTO at Cíclico, specializing in GenAI infrastructures.
