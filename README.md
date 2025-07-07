@@ -47,6 +47,8 @@ flowchart TD
 | RAG & LLM Generation   | Vertex AI RAG, Vertex AI Chat         | Retrieval and answer generation              |
 | Orchestration          | Google ADK CLI, Cloud Build pipelines | Automate preprocessing and deployment        |
 | Infrastructure as Code | Terraform (infra/)                    | Provision GCS, BigQuery, Vertex AI, IAM, VPC |
+| Containerization       | Docker, Docker Compose                | Consistent local & cloud deployments         |
+| Presentation Layer     | Streamlit                             | Interactive UI for document management & QA  |
 
 ## 📁 Main Modules
 
@@ -69,6 +71,51 @@ rag_agent/
     ├── get_corpus_info.py # Tool to fetch corpus statistics and metadata
     ├── rag_query.py       # Tool to execute retrieval + generation
     └── utils.py           # Shared helper functions
+```
+
+## 🔧 Management CLI Tool
+
+We recently developed a command-line interface to simplify corpus and pipeline operations:
+
+* `manage.py`: Entry point for administrative tasks:
+
+  * `python manage.py list-corpora` — List all existing corpora in Vertex AI.
+  * `python manage.py add-documents --path /local/pdfs` — Bulk upload PDFs and update BigQuery.
+  * `python manage.py delete-corpus --name juris-corpus-2024` — Remove a corpus and its index.
+
+## 🐳 Docker & Containerization
+
+To streamline local development and ensure consistent deployments, we've added Docker support:
+
+* **Dockerfile**: Defines a container image with all Python dependencies, environment variables, and the FastAPI entrypoint.
+* **docker-compose.yml**: Orchestrates services for:
+
+  * `rag-agent`: FastAPI backend (port 8000)
+  * `streamlit-ui`: Streamlit application (port 8501)
+  * `vector-index-mock`: Local mock vector index for offline testing
+
+Run the full stack locally:
+
+```bash
+docker-compose up --build
+```
+
+## 🚀 Streamlit Web UI
+
+An interactive Streamlit application for demo and prototyping:
+
+* **Location**: `app/streamlit_app.py`
+* **Features**:
+
+  * PDF upload via drag-and-drop
+  * Status monitoring of ingestion and indexing
+  * Live questioning interface against the RAG agent
+  * Answer display with clickable source links
+
+Run directly or via Docker:
+
+```bash
+streamlit run app/streamlit_app.py
 ```
 
 ## 🔁 RAG Pipeline (Detailed)
@@ -97,8 +144,10 @@ rag_agent/
 
 ## 🚀 Roadmap & Improvements
 
-* Currently developing the BigQuery integration for structured storage, query analytics and metadata management.
-* Integrating the RAG backend with a FastAPI service for production endpoints instead of relying on ADK Web.
+* BigQuery integration for structured analytics and metadata management. ✅
+* FastAPI production endpoint replacing ADK Web.✅
+* Containerized deployments via Docker. ✅
+* Streamlit UI enhancements: real-time monitoring, user authentication, and analytics dashboard.
 
 ---
 
