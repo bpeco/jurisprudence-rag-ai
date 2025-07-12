@@ -6,7 +6,7 @@ import os
 st.set_page_config(page_title="Chat RAG", page_icon="🤖", layout="centered")
 
 # ——— 2) URL de tu backend ———
-API_URL = #PROD_URL
+API_URL = "https://jurisprudence-rag-ai-303029425062.us-central1.run.app"
 #"http://localhost:8000"
 
 # ——— 3) Inicializar historial en sesión ———
