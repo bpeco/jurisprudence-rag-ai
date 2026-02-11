@@ -1,0 +1,214 @@
+manifest:
+  version: "0.1.3"
+  schema: https://a2as.org/cert/schema
+  subject:
+    name: bpeco/jurisprudence-rag-ai
+    source: https://github.com/bpeco/jurisprudence-rag-ai
+    branch: main
+    commit: "d3d5630a"
+    scope: [main.py, rag_agent/agent.py, rag_agent/tools/__init__.py, rag_agent/tools/add_data.py, rag_agent/tools/get_corpus_info.py,
+      rag_agent/tools/rag_query.py]
+  issued:
+    by: A2AS.org
+    at: '2026-02-11T16:55:18Z'
+    url: https://a2as.org/certified/agents/bpeco/jurisprudence-rag-ai
+  signatures:
+    digest: sha256:igDPV60OJF04Zz35Kad_WSwNQbAuWYQlTwU1wEosrGU
+    key: ed25519:KwGbCORXjnKdtd8y3srB2L3HurBVIV60vjr9zvJ9jbw
+    sig: ed25519:AQt_xz8zlRlQoVeoa7m5EzmDnR9WaS-44yrRZtf50JInuKO2OWuY598Rrmru834ElX965E4_pm8r5pxOXzupDA
+
+agents:
+  root_agent:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    tools: [rag_query, add_data, get_corpus_info]
+    params:
+      name: RagAgent
+      description: Vertex AI RAG Agent
+      instruction: ['# 🧠 Agente RAG de Jurisprudencia con Vertex AI', Eres un agente RAG (Retrieval-Augmented Generation)
+          especializado en consultas sobre fallos judiciales almacenadas en Vertex AI., 'Siempre vas a utilizar la colección
+          (corpus): "juris-corpus-2024-v2".', '## Capacidades Principales', '1. **Consultar Fallos**: Responderás preguntas
+          recuperando fragmentos relevantes de tus colecciones de fallos judiciales.', '2. **Añadir Documentos**: Añadirás
+          nuevos PDFs o URLs de Drive/GCS a una colección existente.', '5. **Obtener Info de Colección**: Proporcionarás metadatos
+          y estadísticas (número de documentos, fechas, tribunales) de una colección concreta.3', '## Flujo de Atención a
+          Solicitudes', 1. **Detección de Intención**, '- Si el usuario quiere **gestionar** colecciones (añadir o info),
+          usa la herramienta correspondiente.', '- Si el usuario formula un **consulta legal** (por ejemplo “¿Existe fallo
+          que trate X?”), usa `rag_query`.', 2. **Para Consultas de Jurisprudencia**, '- Llama a `rag_query(corpus_name, query)`
+          para recuperar pasajes relevantes.', 3. **Para Gestión de Colecciones**, '- **Añadir**: `add_data(corpus_name="",
+          paths=[...])` (si usas la colección actual, deja el nombre vacío).', '- **Info**: `get_corpus_info(corpus_name="Nombre")`.',
+        4. **Estado Interno**, '- Mantienes un “documento” en memoria.', '## Directrices de Comunicación', '- Habla en **español
+          claro y conciso**.', '- Al **consultar**, indica los documentos utilizados y resume brevemente la respuesta.', '-
+          Al **gestionar**, confirma la acción realizada (por ejemplo, “He añadido 3 PDFs a la colección”).', '- En caso de
+          **error**, explica el problema y sugiere el siguiente paso.', '---', '> **NOTA INTERNAl** (no lo repitas al usuario):',
+        '> - Para `rag_query` y `add_data`, un `corpus_name` vacío usa la colección actual.', '> - Lleva un seguimiento de
+          los documentos actuales.']
+
+models:
+  gemini-2.5-flash-preview-04-17:
+    type: literal
+    agents: [root_agent]
+
+tools:
+  add_data:
+    type: function
+    agents: [root_agent]
+    params:
+      description: |-
+        Add new data sources to a Vertex AI RAG corpus.
+
+        Args:
+            corpus_name (str): The name of the corpus to add data to. If empty, the current corpus will be used.
+            paths (List[str]): List of URLs or GCS paths to add to the corpus.
+                              Supported formats:
+                              - Google Drive: "https://drive.google.com/file/d/{FILE_ID}/view"
+                              - Google Docs/Sheets/Slides: "https://docs.google.com/{type}/d/{FILE_ID}/..."
+                              - Google Cloud Storage: "gs://{BUCKET}/{PATH}"
+                              Example: ["https://drive.google.com/file/d/123", "gs://my_bucket/my_files_dir"]
+            tool_context (ToolContext): The tool context
+
+        Returns:
+            dict: Information about the added data and status
+  get_corpus_info:
+    type: function
+    agents: [root_agent]
+    params:
+      description: |-
+        Get detailed information about a specific RAG corpus, including its files.
+
+        Args:
+            corpus_name (str): The full resource name of the corpus to get information about.
+                               Preferably use the resource_name from list_corpora results.
+            tool_context (ToolContext): The tool context
+
+        Returns:
+            dict: Information about the corpus and its files
+  rag_query:
+    type: function
+    agents: [root_agent]
+    params:
+      description: |-
+        Query a Vertex AI RAG corpus with a user question and return relevant information.
+
+        Args:
+            corpus_name (str): The name of the corpus to query. If empty, the current corpus will be used.
+                              Preferably use the resource_name from list_corpora results.
+            query (str): The text query to search for in the corpus
+            tool_context (ToolContext): The tool context
+
+        Returns:
+            dict: The query results and status
+
+imports:
+  add_data: tools.add_data.add_data
+  agent: agent
+  Agent: google.adk.agents.Agent
+  asynccontextmanager: contextlib.asynccontextmanager
+  BaseModel: pydantic.BaseModel
+  check_corpus_exists: utils.check_corpus_exists
+  DEFAULT_CHUNK_OVERLAP: config.DEFAULT_CHUNK_OVERLAP
+  DEFAULT_CHUNK_SIZE: config.DEFAULT_CHUNK_SIZE
+  DEFAULT_DISTANCE_THRESHOLD: config.DEFAULT_DISTANCE_THRESHOLD
+  DEFAULT_EMBEDDING_REQUESTS_PER_MIN: config.DEFAULT_EMBEDDING_REQUESTS_PER_MIN
+  DEFAULT_TOP_K: config.DEFAULT_TOP_K
+  Dict: typing.Dict
+  FastAPI: fastapi.FastAPI
+  get_corpus_info: tools.get_corpus_info.get_corpus_info
+  get_corpus_resource_name: utils.get_corpus_resource_name
+  HTTPException: fastapi.HTTPException
+  InMemorySessionService: google.adk.sessions.InMemorySessionService
+  List: typing.List
+  load_dotenv: dotenv.load_dotenv
+  LOCATION: config.LOCATION
+  logging: logging
+  os: os
+  PROJECT_ID: config.PROJECT_ID
+  rag: vertexai.rag
+  rag_query: tools.rag_query.rag_query
+  re: re
+  root_agent: rag_agent.agent.root_agent
+  Runner: google.adk.runners.Runner
+  set_current_corpus: utils.set_current_corpus
+  ToolContext: google.adk.tools.tool_context.ToolContext
+  types: google.genai.types
+  vertexai: vertexai
+
+functions:
+  add_data:
+    type: sync
+    module: rag_agent.tools.add_data
+    args: [corpus_name, paths, tool_context]
+    params:
+      returns: dict
+  check_corpus_exists:
+    type: sync
+    module: rag_agent.tools.utils
+    args: [corpus_name, tool_context]
+    params:
+      returns: bool
+  get_corpus_info:
+    type: sync
+    module: rag_agent.tools.get_corpus_info
+    args: [corpus_name, tool_context]
+    params:
+      returns: dict
+  get_corpus_resource_name:
+    type: sync
+    module: rag_agent.tools.utils
+    args: [corpus_name]
+    params:
+      returns: str
+  healthz:
+    type: async
+    module: main
+  lifespan:
+    type: async
+    module: main
+    args: [app]
+  predict:
+    type: async
+    module: main
+    args: [q]
+  rag_query:
+    type: sync
+    module: rag_agent.tools.rag_query
+    args: [corpus_name, query, tool_context]
+    params:
+      returns: dict
+  set_current_corpus:
+    type: sync
+    module: rag_agent.tools.utils
+    args: [corpus_name, tool_context]
+    params:
+      returns: bool
+
+variables:
+  GOOGLE_APPLICATION_CREDENTIALS:
+    type: env
+    params:
+      caller: [os.environ]
+  GOOGLE_CLOUD_LOCATION:
+    type: env
+    params:
+      caller: [os.environ.get]
+      path: [rag_agent, rag_agent.config]
+  GOOGLE_CLOUD_PROJECT:
+    type: env
+    params:
+      caller: [os.environ.get]
+      path: [rag_agent, rag_agent.config]
+  SA_ACCOUNT_CREDENTIALS:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [rag_agent.tools.utils, rag_agent.tools.add_data, rag_agent.config, rag_agent.tools.rag_query, rag_agent.tools.get_corpus_info]
+
+networks:
+  drive.google.com:
+    type: api
+    actions: [GET]
+    urls: ['/{...}']
+    protocols: [https]
+    ports: ["443"]
+    params:
+      pattern: https://drive.google.com/file/d/{file_id}/view
+      caller: [add_data]
